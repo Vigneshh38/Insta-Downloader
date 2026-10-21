@@ -1,0 +1,6 @@
+<resources>
+    <color name="brand">#6C4CF1</color>
+    <color name="ic_bg">#6C4CF1</color>
+    <color name="thumb_bg">#22888888</color>
+    <color name="badge_bg">#99000000</color>
+</resources>
