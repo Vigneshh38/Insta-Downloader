@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.goBtn).setOnClickListener {
             val text = linkInput.text.toString().trim()
-            if (InstagramApi.extractShortcode(text) == null) {
+            if (!InstagramApi.looksLikeInstagram(text)) {
                 Toast.makeText(this, "Paste an Instagram post or reel link", Toast.LENGTH_SHORT).show()
             } else {
                 startActivity(Intent(this, ShareActivity::class.java).putExtra(Intent.EXTRA_TEXT, text))
@@ -50,9 +50,9 @@ class MainActivity : AppCompatActivity() {
     private fun refresh() {
         val loggedIn = InstagramApi.isLoggedIn()
         status.text = if (loggedIn) {
-            "✅ Logged in. Open any reel or post in Instagram → Share → Save with ReelKeep."
+            "✅ Logged in (optional). Private posts you follow will work too."
         } else {
-            "❌ Not logged in. Log in once so ReelKeep can see posts like your Instagram app does."
+            "✅ Ready. No login needed.\nIn Instagram: open a reel or post → Share → Save with ReelKeep."
         }
         loginBtn.isVisible = !loggedIn
         logoutBtn.isVisible = loggedIn

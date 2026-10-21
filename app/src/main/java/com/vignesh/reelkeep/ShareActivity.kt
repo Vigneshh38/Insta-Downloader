@@ -2,7 +2,6 @@ package com.vignesh.reelkeep
 
 import android.content.Intent
 import android.os.Bundle
-import android.webkit.WebSettings
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -17,7 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Opens when you pick "Save with ReelKeep" in the share sheet. */
+/** Opens when you pick "Save with ReelKeep" in the share sheet. No login needed for public posts. */
 class ShareActivity : AppCompatActivity() {
     private lateinit var progress: ProgressBar
     private lateinit var status: TextView
@@ -26,9 +25,9 @@ class ShareActivity : AppCompatActivity() {
     private lateinit var actions: LinearLayout
     private lateinit var selectAllBtn: MaterialButton
     private lateinit var downloadBtn: MaterialButton
-    private lateinit var userAgent: String
 
-    private var pendingCode: String? = null   // post waiting for you to log in
+    private var sharedText = ""
+    private var retryAfterLogin = false
     private val adapter = MediaAdapter { updateButtons() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,73 +40,67 @@ class ShareActivity : AppCompatActivity() {
         actions = findViewById(R.id.actions)
         selectAllBtn = findViewById(R.id.selectAllBtn)
         downloadBtn = findViewById(R.id.downloadBtn)
-        userAgent = WebSettings.getDefaultUserAgent(this)
 
         grid.layoutManager = GridLayoutManager(this, 3)
         grid.adapter = adapter
 
-        loginBtn.setOnClickListener { startActivity(Intent(this, LoginActivity::class.java)) }
+        loginBtn.text = "Private account? Log in (optional)"
+        loginBtn.setOnClickListener {
+            retryAfterLogin = true
+            startActivity(Intent(this, LoginActivity::class.java))
+        }
         selectAllBtn.setOnClickListener {
             adapter.setAll(adapter.selected.size != adapter.items.size)
         }
         downloadBtn.setOnClickListener {
             val chosen = adapter.selectedItems()
-            chosen.forEach { Downloader.enqueue(this, it, userAgent) }
+            chosen.forEach { Downloader.enqueue(this, it, InstagramApi.UA) }
             Toast.makeText(this, "Downloading ${chosen.size} file(s)…", Toast.LENGTH_SHORT).show()
             finish()
         }
 
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.dataString ?: ""
-        val code = InstagramApi.extractShortcode(text)
-        if (code == null) {
+        sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.dataString ?: ""
+        if (!InstagramApi.looksLikeInstagram(sharedText)) {
             showMessage("This doesn't look like an Instagram post or reel link.")
             return
         }
-        if (!InstagramApi.isLoggedIn()) {
-            pendingCode = code
-            showLogin()
-        } else {
-            load(code)
-        }
+        load()
     }
 
     override fun onResume() {
         super.onResume()
-        // Came back from the login screen? Continue with the post.
-        val code = pendingCode
-        if (code != null && InstagramApi.isLoggedIn()) {
-            pendingCode = null
-            load(code)
+        // Came back from the optional login screen? Try again.
+        if (retryAfterLogin && InstagramApi.isLoggedIn()) {
+            retryAfterLogin = false
+            load()
         }
     }
 
-    private fun load(code: String) {
+    private fun load() {
         progress.isVisible = true
         loginBtn.isVisible = false
         status.text = "Finding the full-size file…"
         lifecycleScope.launch {
             try {
-                val items = withContext(Dispatchers.IO) { InstagramApi.fetch(code, userAgent) }
+                val items = withContext(Dispatchers.IO) {
+                    val code = InstagramApi.resolveShortcode(sharedText)
+                        ?: throw IllegalStateException("Couldn't read the post link.")
+                    InstagramApi.fetch(code)
+                }
                 when {
-                    items.isEmpty() -> showMessage("No photo or video found in this post.")
+                    items.isEmpty() -> showError("No photo or video found in this post.")
                     items.size == 1 -> {
                         val one = items[0]
-                        Downloader.enqueue(this@ShareActivity, one, userAgent)
+                        Downloader.enqueue(this@ShareActivity, one, InstagramApi.UA)
                         val kind = if (one.isVideo) "video" else "photo"
-                        Toast.makeText(
-                            this@ShareActivity,
-                            "Downloading $kind (${one.width}×${one.height})",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        val size = if (one.width > 0) " (${one.width}×${one.height})" else ""
+                        Toast.makeText(this@ShareActivity, "Downloading $kind$size", Toast.LENGTH_SHORT).show()
                         finish()
                     }
                     else -> showPicker(items)
                 }
-            } catch (e: LoginRequiredException) {
-                pendingCode = code
-                showLogin()
             } catch (e: Exception) {
-                showMessage(e.message ?: "Something went wrong. Check your internet and try again.")
+                showError(e.message ?: "Something went wrong. Check your internet and try again.")
             }
         }
     }
@@ -126,10 +119,11 @@ class ShareActivity : AppCompatActivity() {
         selectAllBtn.text = if (n == adapter.items.size) "Select none" else "Select all"
     }
 
-    private fun showLogin() {
+    /** Error: also offer the optional login, since private posts need it. */
+    private fun showError(msg: String) {
         progress.isVisible = false
-        status.text = "You need to log in to Instagram inside ReelKeep once. After that, sharing works straight away."
-        loginBtn.isVisible = true
+        status.text = msg
+        loginBtn.isVisible = !InstagramApi.isLoggedIn()
     }
 
     private fun showMessage(msg: String) {

@@ -29,7 +29,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Log in to Instagram" />
+            android:text="Optional: log in for private posts" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/logoutBtn"
@@ -64,6 +64,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
             android:lineSpacingExtra="4dp"
-            android:text="How to use:\n1. Log in once with the button above.\n2. In Instagram, open a reel or post.\n3. Tap Share → Share to… (or More) → Save with ReelKeep.\n\nPhotos go to Pictures/ReelKeep. Videos go to Movies/ReelKeep." />
+            android:text="How to use:\n1. In Instagram, open a reel or post.\n2. Tap Share → Share to… (or More) → Save with ReelKeep.\n3. Done. Login is only needed for private accounts.\n\nPhotos go to Pictures/ReelKeep. Videos go to Movies/ReelKeep." />
     </LinearLayout>
 </ScrollView>

@@ -3,7 +3,7 @@
 Android app that shows up in the share menu. Share an Instagram reel or post to it, and it saves the photo or video at the biggest size Instagram has.
 
 ## Use it
-1. Open ReelKeep and tap **Log in to Instagram** (one time only).
+1. No login needed for public posts. (Optional login on the home screen, only for private accounts.)
 2. In Instagram, open a reel or post → **Share** → **Share to… / More** → **Save with ReelKeep**.
 3. One item: it downloads straight away. Many items (carousel): tick the ones you want → **Download**.
 
